@@ -36,7 +36,7 @@ export const PublishToGitHubModal: React.FC<PublishToGitHubModalProps> = ({
   gitCommits,
   userEmail = 'shaneash15@gmail.com',
 }) => {
-  const [repoName, setRepoName] = useState('codepocket-mobile-ide');
+  const [repoName, setRepoName] = useState('Master1503/CodePocket-MobileVS');
   const [repoDescription, setRepoDescription] = useState(
     'Mobile Visual Studio Code IDE featuring multi-language syntax highlighting, interactive debugger, git integration, plugin marketplace, terminal interface, and cloud sync.'
   );
@@ -47,8 +47,10 @@ export const PublishToGitHubModal: React.FC<PublishToGitHubModalProps> = ({
 
   if (!isOpen) return null;
 
-  const username = userEmail.split('@')[0] || 'shaneash15';
-  const repoUrl = `https://github.com/${username}/${repoName}`;
+  const username = userEmail.split('@')[0] || 'Master1503';
+  const repoUrl = repoName.includes('/')
+    ? `https://github.com/${repoName}`
+    : `https://github.com/${username}/${repoName}`;
 
   const gitCliCommand = `git init
 git add .
