@@ -1,0 +1,6 @@
+{
+  "name": "CodePocket - Mobile VS Code IDE",
+  "description": "Full-featured mobile Visual Studio Code experience featuring syntax highlighting for multiple languages, interactive debugging tools, Git source control, extension marketplace, terminal interface, touch keyboard bar, and cloud sync across devices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
