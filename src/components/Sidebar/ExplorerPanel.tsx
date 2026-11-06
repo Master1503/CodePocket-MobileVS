@@ -21,12 +21,14 @@ import {
   FileSpreadsheet,
   Search,
   X,
+  Clock,
 } from 'lucide-react';
 import { FileItem, LanguageId } from '../../types/vscode.ts';
 
 interface ExplorerPanelProps {
   files: FileItem[];
   activeFileId: string | null;
+  recentFiles?: FileItem[];
   onSelectFile: (file: FileItem) => void;
   onCreateFile: (name: string, isFolder: boolean) => void;
   onDeleteFile: (id: string) => void;
@@ -68,12 +70,14 @@ export const getFileIcon = (fileName: string, language: LanguageId) => {
 export const ExplorerPanel: React.FC<ExplorerPanelProps> = ({
   files,
   activeFileId,
+  recentFiles = [],
   onSelectFile,
   onCreateFile,
   onDeleteFile,
   onRenameFile,
 }) => {
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
+  const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [showNewInput, setShowNewInput] = useState<{ isFolder: boolean } | null>(null);
   const [newItemName, setNewItemName] = useState('');
@@ -401,6 +405,52 @@ export const ExplorerPanel: React.FC<ExplorerPanelProps> = ({
 
       {/* File Tree List or Empty State */}
       <div className="flex-1 overflow-y-auto py-1">
+        {/* Recent Files Section (last 10 opened files) */}
+        {!filterText.trim() && recentFiles.length > 0 && (
+          <div className="mb-1 border-b border-[#333333] pb-1">
+            <div
+              onClick={() => setRecentCollapsed((prev) => !prev)}
+              className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-white cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                {recentCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                <Clock size={11} className="text-red-400" />
+                <span>Recent Files</span>
+              </div>
+              <span className="text-[9px] font-mono bg-[#333333] text-gray-300 px-1.5 rounded-full">
+                {recentFiles.length}
+              </span>
+            </div>
+
+            {!recentCollapsed && (
+              <div className="mt-0.5">
+                {recentFiles.map((rf) => {
+                  const isActive = activeFileId === rf.id;
+                  return (
+                    <div
+                      key={`recent-${rf.id}`}
+                      onClick={() => onSelectFile(rf)}
+                      className={`flex items-center justify-between px-3 py-1 text-xs cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-[#37373d] text-white font-medium border-l-2 border-[#991b1b]'
+                          : 'text-gray-300 hover:bg-[#2a2d2e] hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate min-w-0">
+                        {getFileIcon(rf.name, rf.language)}
+                        <span className="truncate">{rf.name}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-mono truncate ml-2 max-w-[90px]">
+                        {rf.path}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {filteredTree.length > 0 ? (
           renderFileTree(filteredTree)
         ) : filterText.trim() ? (

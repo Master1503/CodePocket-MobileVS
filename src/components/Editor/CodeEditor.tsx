@@ -16,6 +16,7 @@ import { FileItem, Breakpoint, LanguageId, UserSettings } from '../../types/vsco
 import { highlightCode, getLanguageCommentSyntax } from '../../services/syntaxHighlighter.ts';
 import { THEMES } from '../../constants/themes.ts';
 import { TouchKeyboardBar } from './TouchKeyboardBar.tsx';
+import { TouchBar } from './TouchBar.tsx';
 
 interface CodeEditorProps {
   file: FileItem;
@@ -804,6 +805,31 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Programming Characters TouchBar (above virtual keyboard) */}
+      <TouchBar
+        onInsertText={handleInsertText}
+        onIndent={() => handleInsertText(' '.repeat(settings.tabSize || 2))}
+        onOutdent={() => {
+          const el = textareaRef.current;
+          if (!el) return;
+          const start = el.selectionStart;
+          const val = el.value;
+          const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+          const tabSpaces = ' '.repeat(settings.tabSize || 2);
+          if (val.slice(lineStart).startsWith(tabSpaces)) {
+            const nextVal = val.slice(0, lineStart) + val.slice(lineStart + tabSpaces.length);
+            const nextPos = Math.max(lineStart, start - tabSpaces.length);
+            onChange(nextVal);
+            requestAnimationFrame(() => {
+              if (textareaRef.current) {
+                textareaRef.current.selectionStart = nextPos;
+                textareaRef.current.selectionEnd = nextPos;
+              }
+            });
+          }
+        }}
+      />
 
       {/* Touch Coding Accessory Bar for Mobile */}
       <TouchKeyboardBar

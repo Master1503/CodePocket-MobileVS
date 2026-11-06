@@ -18,7 +18,8 @@ import { FileItem } from '../../types/vscode.ts';
 interface SearchPanelProps {
   files: FileItem[];
   onSelectMatch: (file: FileItem, lineNumber: number) => void;
-  onReplaceInFile?: (fileId: string, oldText: string, newText: string) => void;
+  onReplaceInFile?: (fileId: string, searchRegex: RegExp, newText: string) => void;
+  onReplaceAllInWorkspace?: (searchRegex: RegExp, newText: string) => void;
 }
 
 interface SearchMatch {
@@ -37,13 +38,14 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   files,
   onSelectMatch,
   onReplaceInFile,
+  onReplaceAllInWorkspace,
 }) => {
   const [query, setQuery] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [matchCase, setMatchCase] = useState(false);
   const [wholeWord, setWholeWord] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
-  const [showReplace, setShowReplace] = useState(false);
+  const [showReplace, setShowReplace] = useState(true);
   const [collapsedFiles, setCollapsedFiles] = useState<Record<string, boolean>>({});
 
   // Flatten all files
@@ -151,9 +153,27 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
     }
   };
 
+  const buildReplaceRegex = (): RegExp | null => {
+    if (!query) return null;
+    try {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = useRegex ? query : wholeWord ? `\\b${escaped}\\b` : escaped;
+      return new RegExp(pattern, matchCase ? 'g' : 'gi');
+    } catch {
+      return null;
+    }
+  };
+
   const handleReplaceAllInFile = (file: FileItem) => {
-    if (!query || !onReplaceInFile) return;
-    onReplaceInFile(file.id, query, replaceText);
+    const rx = buildReplaceRegex();
+    if (!rx || !onReplaceInFile) return;
+    onReplaceInFile(file.id, rx, replaceText);
+  };
+
+  const handleReplaceAllWorkspace = () => {
+    const rx = buildReplaceRegex();
+    if (!rx || !onReplaceAllInWorkspace) return;
+    onReplaceAllInWorkspace(rx, replaceText);
   };
 
   const renderHighlightedLine = (m: SearchMatch) => {
@@ -252,15 +272,28 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
         </div>
 
         {showReplace && (
-          <div className="flex items-center gap-1.5 bg-[#252526] border border-[#3c3c3c] focus-within:border-[#991b1b] rounded px-2 py-1 transition-colors">
-            <Replace size={14} className="text-gray-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="Replace with..."
-              value={replaceText}
-              onChange={(e) => setReplaceText(e.target.value)}
-              className="flex-1 bg-transparent text-white text-xs focus:outline-hidden"
-            />
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 flex items-center gap-1.5 bg-[#252526] border border-[#3c3c3c] focus-within:border-[#991b1b] rounded px-2 py-1 transition-colors min-w-0">
+              <Replace size={14} className="text-gray-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Replace with..."
+                value={replaceText}
+                onChange={(e) => setReplaceText(e.target.value)}
+                className="flex-1 bg-transparent text-white text-xs focus:outline-hidden min-w-0"
+              />
+            </div>
+            {onReplaceAllInWorkspace && (
+              <button
+                type="button"
+                onClick={handleReplaceAllWorkspace}
+                disabled={!query.trim() || totalMatches === 0}
+                title="Replace All Across Workspace"
+                className="px-2 py-1 bg-[#991b1b] hover:bg-[#7f1d1d] disabled:opacity-40 text-white rounded text-[11px] font-semibold shrink-0 transition-colors cursor-pointer"
+              >
+                Replace All
+              </button>
+            )}
           </div>
         )}
 

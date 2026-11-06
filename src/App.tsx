@@ -144,6 +144,7 @@ export default function App() {
   const [isCheckingCode, setIsCheckingCode] = useState<boolean>(false);
   const [aiProblems, setAiProblems] = useState<ProblemItem[]>([]);
   const [zenMode, setZenMode] = useState<boolean>(false);
+  const [recentFileIds, setRecentFileIds] = useState<string[]>(['f-game-engine', 'f-readme']);
 
   // Editor cursor tracking
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number }>({ line: 1, col: 1 });
@@ -212,6 +213,22 @@ export default function App() {
 
   // Diagnostics & problems (merging static linter + Gemini AI checker)
   const problems = useMemo(() => [...aiProblems, ...getAllProblems(files)], [files, aiProblems]);
+
+  // Resolve last 10 opened files
+  const recentFiles = useMemo(() => {
+    const fileMap = new Map<string, FileItem>();
+    function collect(items: FileItem[]) {
+      for (const item of items) {
+        if (!item.isFolder) fileMap.set(item.id, item);
+        if (item.children) collect(item.children);
+      }
+    }
+    collect(files);
+    return recentFileIds
+      .map((id) => fileMap.get(id))
+      .filter((f): f is FileItem => Boolean(f))
+      .slice(0, 10);
+  }, [files, recentFileIds]);
 
   // Modified files count for badge
   const modifiedCount = useMemo(() => {
@@ -288,6 +305,7 @@ export default function App() {
         setTabs((prev) => [...prev, newTab]);
         setActiveTabId(newTab.id);
       }
+      setRecentFileIds((prev) => [file.id, ...prev.filter((id) => id !== file.id)].slice(0, 10));
     },
     [tabs]
   );
@@ -1273,6 +1291,7 @@ export default function App() {
               <ExplorerPanel
                 files={files}
                 activeFileId={activeFile?.id || null}
+                recentFiles={recentFiles}
                 onSelectFile={handleOpenFile}
                 onCreateFile={handleCreateFile}
                 onDeleteFile={handleDeleteFile}
@@ -1285,6 +1304,61 @@ export default function App() {
                 onSelectMatch={(file, line) => {
                   handleOpenFile(file);
                   setCursorPos({ line, col: 1 });
+                }}
+                onReplaceInFile={(fileId, searchRegex, newText) => {
+                  setFiles((prev) => {
+                    function replaceInTree(items: FileItem[]): FileItem[] {
+                      return items.map((item) => {
+                        if (item.id === fileId && !item.isFolder) {
+                          const updated = item.content.replace(searchRegex, newText);
+                          return {
+                            ...item,
+                            content: updated,
+                            isModified: updated !== item.originalContent,
+                          };
+                        }
+                        if (item.children) {
+                          return { ...item, children: replaceInTree(item.children) };
+                        }
+                        return item;
+                      });
+                    }
+                    return replaceInTree(prev);
+                  });
+                  setTabs((prev) =>
+                    prev.map((t) => (t.fileId === fileId ? { ...t, isModified: true } : t))
+                  );
+                }}
+                onReplaceAllInWorkspace={(searchRegex, newText) => {
+                  const modifiedIds = new Set<string>();
+                  setFiles((prev) => {
+                    function replaceAllTree(items: FileItem[]): FileItem[] {
+                      return items.map((item) => {
+                        if (!item.isFolder && searchRegex.test(item.content)) {
+                          searchRegex.lastIndex = 0;
+                          const updated = item.content.replace(searchRegex, newText);
+                          if (updated !== item.content) {
+                            modifiedIds.add(item.id);
+                            return {
+                              ...item,
+                              content: updated,
+                              isModified: updated !== item.originalContent,
+                            };
+                          }
+                        }
+                        if (item.children) {
+                          return { ...item, children: replaceAllTree(item.children) };
+                        }
+                        return item;
+                      });
+                    }
+                    return replaceAllTree(prev);
+                  });
+                  setTabs((prev) =>
+                    prev.map((t) =>
+                      modifiedIds.has(t.fileId) ? { ...t, isModified: true } : t
+                    )
+                  );
                 }}
               />
             )}
